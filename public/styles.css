@@ -221,3 +221,24 @@ a.bar-title:hover { text-decoration: underline; text-underline-offset: 4px; }
   .side.right { position: static; width: auto; box-shadow: none; order: -1; scroll-margin-top: 0.5rem; }
   .canvas-wrap { order: -2; }
 }
+
+/* Learning path: the order concepts are taught in, and where the learner is on it */
+.side h4 { font-family: var(--display); font-size: 0.85rem; font-weight: 600; color: var(--muted); margin: 1rem 0 0.3rem; }
+.path { margin: 0; padding-left: 2rem; font-family: var(--display); font-size: 0.9rem; }
+.path li { margin-bottom: 0.3rem; padding-left: 0.2rem; }
+.path li::marker { font-weight: 700; }
+.path-row { display: flex; gap: 0.5rem; align-items: baseline; justify-content: space-between; }
+.path li.locked, .path li.locked .linklike { color: var(--muted); }
+.path li.next { font-weight: 700; }
+.path li.next .linklike { font-family: var(--display); font-weight: 700; }
+.path .linklike { font-family: var(--display); }
+.lock { font-size: 0.78rem; color: var(--muted); }
+.chip.next { background: var(--focus); color: #fff; }
+.swatch.next { background: var(--surface); border: 2px solid var(--ink); box-shadow: 0 0 0 3px var(--focus); }
+.swatch.locked { background: var(--surface); border: 2px solid var(--ink); opacity: 0.32; }
+.step-line { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+.step-note { font-family: var(--display); font-size: 0.9rem; padding: 0.7rem 0.85rem; border-radius: 8px; background: var(--paper); }
+.step-note.next { border: 2px solid var(--focus); background: var(--surface); }
+.step-note.next p { margin-bottom: 0.6rem; }
+.step-note.next button { width: 100%; background: var(--focus); border-color: var(--focus); font-size: 0.9rem; padding: 0.55rem 0.8rem; }
+.step-note .linklike { font-family: var(--display); font-weight: 600; }

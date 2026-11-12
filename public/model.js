@@ -97,19 +97,37 @@ export function buildModel(domain, responses, grades) {
       ...status,
       itemIds: [...new Set(evidence.map((e) => e.itemId))],
       misconceptions: held.map((m) => m.id),
-      next: false,
     };
-  }
-
-  // "Learn next": something the learner does not have yet, whose prerequisites they do have.
-  for (const node of domain.nodes) {
-    const status = nodes[node.id];
-    const needsWork = ["gap", "shaky", "misconception"].includes(status.state);
-    status.next = needsWork && node.prereqs.every((id) => nodes[id].state === "known");
   }
 
   const counts = Object.fromEntries(STATES.map((s) => [s, 0]));
   for (const id in nodes) counts[nodes[id].state] += 1;
 
   return { nodes, edges, misconceptions, counts };
+}
+
+/**
+ * The learning path: the domain's teaching order ("sequence"), with each concept
+ * marked done, up next, or locked.
+ *
+ * A concept is done if the test showed it is known, or the learner has since marked
+ * it as learned. The first concept in the order that is not done is "up next".
+ * Everything not done after that is locked until the learner gets there.
+ *
+ * @param learned ids of concepts the learner has marked as learned since the test
+ */
+export function buildPath(domain, model, learned) {
+  const order = domain.sequence.flatMap((unit) => unit.concepts);
+  const done = new Set(order.filter((id) => model.nodes[id].state === "known" || learned.includes(id)));
+  const upNext = order.find((id) => !done.has(id)) ?? null;
+  const steps = {};
+  order.forEach((id, index) => {
+    steps[id] = {
+      number: index + 1,
+      status: done.has(id) ? "done" : id === upNext ? "next" : "locked",
+      learned: learned.includes(id) && model.nodes[id].state !== "known",
+      unit: domain.sequence.find((unit) => unit.concepts.includes(id)).title,
+    };
+  });
+  return { order, steps, upNext, doneCount: done.size };
 }

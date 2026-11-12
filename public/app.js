@@ -1,12 +1,12 @@
-import { buildModel, STATES, STATE_LABEL, CONFIDENCE_LABEL } from "./model.js";
-import { layoutGrid, BOX_WIDTH, BOX_HEIGHT } from "./layout.js";
+import { buildModel, buildPath, STATES, STATE_LABEL, CONFIDENCE_LABEL } from "./model.js?v=4";
+import { layoutGrid, BOX_WIDTH, BOX_HEIGHT } from "./layout.js?v=4";
 
 const app = document.getElementById("app");
 const SAVE_KEY = "concept-map-session-v1";
 
 const COLOR = {
   paper: "#edf1f3", surface: "#ffffff", ink: "#1a2238", muted: "#5c667a", line: "#c9d1da",
-  known: "#1e7b6e", shaky: "#e0a526", shakySoft: "#f6dfa0", misconception: "#be2a4f", halo: "#8fa4f3",
+  known: "#1e7b6e", shaky: "#e0a526", shakySoft: "#f6dfa0", misconception: "#be2a4f", halo: "#8fa4f3", next: "#3b5bdb",
 };
 
 let domain;
@@ -14,7 +14,7 @@ let session = newSession();
 let cy = null;
 
 function newSession() {
-  return { index: 0, responses: {}, written: {}, grades: {}, gradeErrors: {}, optionOrder: {} };
+  return { index: 0, responses: {}, written: {}, grades: {}, gradeErrors: {}, optionOrder: {}, learned: [] };
 }
 
 const esc = (text) =>
@@ -296,10 +296,20 @@ const chip = (state) => `<span class="chip ${state}">${STATE_LABEL[state]}</span
 const nodeById = (id) => domain.nodes.find((n) => n.id === id);
 const nodeButton = (id) => `<button class="linklike" data-node="${id}">${esc(nodeById(id).label)}</button>`;
 
-function showMap() {
+const PATH_MARK = {
+  done: `<span class="mark right">Done</span>`,
+  next: `<span class="chip next">Up next</span>`,
+  locked: `<span class="lock">Locked</span>`,
+};
+
+// What a concept is drawn as: the test result, or "known" once the learner marks it learned.
+const shownState = (id, model, path) => (path.steps[id].learned ? "known" : model.nodes[id].state);
+
+function showMap(selectId) {
+  session.learned ||= [];
   const model = buildModel(domain, session.responses, session.grades);
+  const path = buildPath(domain, model, session.learned);
   const errors = Object.values(session.gradeErrors);
-  const nextNodes = domain.nodes.filter((n) => model.nodes[n.id].next);
 
   show(
     `<div class="map-screen">
@@ -317,13 +327,19 @@ function showMap() {
         </div>
         <p class="hint">Counts are concepts, out of ${domain.nodes.length}.</p>
 
-        <h3>Learn next</h3>
-        ${
-          nextNodes.length
-            ? `<p class="hint">You already know what these build on.</p>
-               <ul>${nextNodes.map((n) => `<li>${nodeButton(n.id)}</li>`).join("")}</ul>`
-            : `<p class="empty">Nothing is ready to learn next. ${model.counts.known === domain.nodes.length ? "You know every concept on the map." : "Start with any concept marked as a gap."}</p>`
-        }
+        <h3>Learning path</h3>
+        <p class="hint">${path.doneCount} of ${path.order.length} concepts done. ${path.upNext ? "Finishing the one that is up next unlocks the one after it." : "The whole path is complete."}</p>
+        ${domain.sequence
+          .map(
+            (unit) => `<h4>${esc(unit.title)}</h4>
+              <ol class="path">${unit.concepts
+                .map(
+                  (id) => `<li value="${path.steps[id].number}" class="${path.steps[id].status}"><span class="path-row">${nodeButton(id)}${PATH_MARK[path.steps[id].status]}</span></li>`,
+                )
+                .join("")}</ol>`,
+          )
+          .join("")}
+        ${session.learned.length ? `<div class="actions"><button class="quiet small" id="reset-path">Undo the concepts marked as learned</button></div>` : ""}
 
         <h3>Beliefs to correct</h3>
         ${
@@ -339,18 +355,20 @@ function showMap() {
       <section class="canvas-wrap" aria-label="Concept map">
         <div class="tools">
           <div class="segmented" role="group" aria-label="Map view">
-            <button id="view-mine" aria-pressed="true">${session.sample ? "Learner's knowledge" : "Your knowledge"}</button>
+            <button id="view-path" aria-pressed="true">Learning path</button>
+            <button id="view-mine" aria-pressed="false">${session.sample ? "Learner's knowledge" : "Your knowledge"}</button>
             <button id="view-expert" aria-pressed="false">Full map</button>
           </div>
           <label><input type="checkbox" id="labels"> Show link labels</label>
-          <span class="reading-hint">Each band is one path, read left to right. Select a box or a link for details.</span>
+          <span class="reading-hint">The numbers give the order to learn in. Select a box for details.</span>
           <span class="spacer"></span>
           <button class="quiet small" id="fit">Fit to window</button>
         </div>
         <div id="cy"></div>
         <div class="legend">
           ${STATES.map((s) => `<span><i class="swatch ${s}"></i>${STATE_LABEL[s]}</span>`).join("")}
-          <span><i class="swatch next"></i>Learn next</span>
+          <span><i class="swatch next"></i>Up next</span>
+          <span><i class="swatch locked"></i>Locked</span>
         </div>
       </section>
 
@@ -383,9 +401,9 @@ function showMap() {
     if (box.x2 > visibleRight) cy.animate({ panBy: { x: visibleRight - box.x2, y: 0 }, duration: 200 });
   };
 
-  drawGraph(model, {
+  drawGraph(model, path, {
     onNode: (id) => {
-      detail.innerHTML = nodeDetailHtml(id, model);
+      detail.innerHTML = nodeDetailHtml(id, model, path);
       revealDetail();
     },
     onEdge: (id) => {
@@ -402,6 +420,15 @@ function showMap() {
       if (stacked()) document.querySelector(".canvas-wrap").scrollIntoView({ block: "start" });
       return;
     }
+    // Marking the concept that is up next as learned unlocks the one after it.
+    const learn = event.target.closest("[data-learn]");
+    if (learn) {
+      session.learned.push(learn.dataset.learn);
+      if (session.finished) save();
+      const after = buildPath(domain, model, session.learned).upNext;
+      showMap(after || learn.dataset.learn);
+      return;
+    }
     const button = event.target.closest("[data-node]");
     if (!button || !cy) return;
     const node = cy.nodes(`[concept = "${button.dataset.node}"]`).first();
@@ -413,18 +440,32 @@ function showMap() {
   document.getElementById("retake").onclick = () => go("home");
   document.getElementById("fit").onclick = () => cy.fit(undefined, 24);
   document.getElementById("labels").onchange = (event) => cy.edges().toggleClass("labelled", event.target.checked);
-  const mine = document.getElementById("view-mine");
-  const expert = document.getElementById("view-expert");
-  const setView = (isExpert) => {
-    mine.setAttribute("aria-pressed", String(!isExpert));
-    expert.setAttribute("aria-pressed", String(isExpert));
-    cy.elements().not(".band").toggleClass("expert", isExpert);
+  const resetPath = document.getElementById("reset-path");
+  if (resetPath) {
+    resetPath.onclick = () => {
+      session.learned = [];
+      if (session.finished) save();
+      showMap();
+    };
+  }
+
+  // Three ways to look at the same map:
+  //   path    the learner's knowledge, with everything still locked faded back
+  //   mine    the learner's knowledge, nothing faded
+  //   expert  every concept and link drawn the same, with no learner overlay
+  const views = ["path", "mine", "expert"];
+  const setView = (view) => {
+    for (const name of views) {
+      document.getElementById(`view-${name}`).setAttribute("aria-pressed", String(name === view));
+    }
+    cy.elements().not(".band").toggleClass("unlocked-view", view !== "path").toggleClass("expert", view === "expert");
   };
-  mine.onclick = () => setView(false);
-  expert.onclick = () => setView(true);
+  for (const name of views) document.getElementById(`view-${name}`).onclick = () => setView(name);
+
+  if (selectId) cy.nodes(`[concept = "${selectId}"]`).first().select();
 }
 
-function drawGraph(model, handlers) {
+function drawGraph(model, path, handlers) {
   const layout = layoutGrid(domain);
   const elements = [
     // A band behind each path. Part of the picture, not something to select.
@@ -441,14 +482,26 @@ function drawGraph(model, handlers) {
       group: "nodes",
       data: { id: box.id, concept: box.concept, label: nodeById(box.concept).label },
       position: { x: box.x, y: box.y },
-      classes: `concept ${model.nodes[box.concept].state} ${model.nodes[box.concept].next ? "next" : ""}`,
+      classes: `concept ${shownState(box.concept, model, path)} step-${path.steps[box.concept].status}`,
       grabbable: false, // boxes stay on the grid so every link stays straight
     })),
-    ...layout.links.map((link) => ({
-      group: "edges",
-      data: { id: link.id, source: link.source, target: link.target, label: link.label },
-      classes: model.edges[link.id].state,
+    // The concept's place in the learning order, on the corner of its box.
+    ...layout.boxes.map((box) => ({
+      group: "nodes",
+      data: { id: `${box.id}#`, concept: box.concept, label: String(path.steps[box.concept].number) },
+      position: { x: box.x - BOX_WIDTH / 2 + 3, y: box.y - BOX_HEIGHT / 2 + 1 },
+      classes: `badge step-${path.steps[box.concept].status}`,
+      selectable: false,
+      grabbable: false,
     })),
+    ...layout.links.map((link) => {
+      const locked = [link.source, link.target].some((id) => path.steps[id.split("~")[0]].status === "locked");
+      return {
+        group: "edges",
+        data: { id: link.id, source: link.source, target: link.target, label: link.label },
+        classes: `${model.edges[link.id].state} ${locked ? "step-locked" : ""}`,
+      };
+    }),
   ];
 
   const font = '"Bricolage Grotesque", "Segoe UI", sans-serif';
@@ -488,7 +541,22 @@ function drawGraph(model, handlers) {
       { selector: "node.gap", style: { "border-style": "dashed" } },
       { selector: "node.misconception", style: { "background-color": COLOR.misconception, "border-color": COLOR.misconception, color: "#fff" } },
       { selector: "node.untested", style: { "background-color": COLOR.paper, "border-style": "dotted", "border-color": COLOR.muted, color: COLOR.muted } },
-      { selector: "node.next", style: { "underlay-color": COLOR.halo, "underlay-opacity": 0.9, "underlay-padding": 6, "underlay-shape": "round-rectangle" } },
+      { selector: "node.concept.step-next", style: { "underlay-color": COLOR.next, "underlay-opacity": 1, "underlay-padding": 7, "underlay-shape": "round-rectangle" } },
+      {
+        selector: "node.badge",
+        style: {
+          ...layer(4), shape: "ellipse", width: 24, height: 24, events: "no",
+          "background-color": COLOR.ink, "border-width": 2, "border-color": COLOR.surface,
+          label: "data(label)", "text-valign": "center", "text-halign": "center",
+          "font-family": font, "font-size": 12, "font-weight": 700, color: "#fff",
+        },
+      },
+      { selector: "node.badge.step-next", style: { "background-color": COLOR.next } },
+      // Locked: still to come on the learning path, so faded back.
+      { selector: ".step-locked", style: { opacity: 0.32 } },
+      // The number stays legible on a locked box, so the order can still be read.
+      { selector: "node.badge.step-locked", style: { opacity: 0.8, "background-color": COLOR.muted } },
+      { selector: ".step-locked.unlocked-view", style: { opacity: 1 } },
       {
         selector: "edge",
         style: {
@@ -529,9 +597,11 @@ function drawGraph(model, handlers) {
   const focusOn = (element) => {
     clearFocus();
     // A concept drawn in two places is focused in both.
-    const kept = element.isNode()
-      ? cy.nodes(`[concept = "${element.data("concept")}"]`).closedNeighborhood()
+    const boxes = element.isNode()
+      ? cy.nodes(`.concept[concept = "${element.data("concept")}"]`).closedNeighborhood()
       : element.union(element.connectedNodes());
+    // Keep the number badges of the boxes that stay lit.
+    const kept = boxes.union(boxes.nodes().map((box) => cy.getElementById(`${box.id()}#`)));
     cy.elements().not(".band").not(kept).addClass("dim");
     kept.edges().addClass("focus");
   };
@@ -593,12 +663,24 @@ function misconceptionsHtml(ids, model) {
     .join("");
 }
 
-function nodeDetailHtml(id, model) {
+function nodeDetailHtml(id, model, path) {
   const node = nodeById(id);
   const status = model.nodes[id];
+  const step = path.steps[id];
   const links = domain.edges.filter((e) => e.source === id || e.target === id);
+  const isLast = step.number === path.order.length;
+  const stepHtml = {
+    done: step.learned ? `<p class="step-note">You marked this as learned. The test had it as: ${STATE_LABEL[status.state].toLowerCase()}.</p>` : "",
+    next: `<div class="step-note next">
+        <p><strong>This is the concept to learn now.</strong> Read the explanation and the links below.</p>
+        <button data-learn="${id}">${isLast ? "Mark as learned and finish the path" : "Mark as learned and unlock the next concept"}</button>
+      </div>`,
+    locked: `<p class="step-note locked">Locked. It opens once you reach it on the learning path. Up next is ${path.upNext ? nodeButton(path.upNext) : ""}.</p>`,
+  }[step.status];
   return `<div class="detail-head"><h2>${esc(node.label)}</h2><button class="quiet small" data-close>Close</button></div>
-    <p>${chip(status.state)}${status.next ? ` <span class="chip untested">Learn next</span>` : ""}</p>
+    <p class="step-line">Concept ${step.number} of ${path.order.length}, in ${esc(step.unit)}</p>
+    <p>${chip(shownState(id, model, path))} ${step.status === "done" ? "" : PATH_MARK[step.status]}</p>
+    ${stepHtml}
     <p>${esc(node.desc)}</p>
     ${misconceptionsHtml(status.misconceptions, model)}
     <h3>What connects to it</h3>
@@ -608,7 +690,7 @@ function nodeDetailHtml(id, model) {
     ${
       node.prereqs.length
         ? `<h3>Builds on</h3><ul>${node.prereqs
-            .map((p) => `<li class="statement">${nodeButton(p)}${chip(model.nodes[p].state)}</li>`)
+            .map((p) => `<li class="statement">${nodeButton(p)}${chip(shownState(p, model, path))}</li>`)
             .join("")}</ul>`
         : ""
     }
@@ -634,7 +716,7 @@ function edgeDetailHtml(id, model) {
 /* ---------- Start ---------- */
 
 try {
-  const response = await fetch("data/heart.json");
+  const response = await fetch("data/heart.json", { cache: "no-cache" });
   if (!response.ok) throw new Error(`The server answered ${response.status}.`);
   domain = await response.json();
 

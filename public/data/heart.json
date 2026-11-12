@@ -1,6 +1,15 @@
 {
   "title": "The human heart",
   "summary": "How blood moves through the heart, lungs and body, and what keeps it moving.",
+  "sequence": [
+    { "title": "What blood is for", "concepts": ["body", "lungs", "oxy", "deoxy"] },
+    { "title": "Vessels and muscle", "concepts": ["artery", "vein", "myocardium"] },
+    { "title": "The four chambers", "concepts": ["ra", "rv", "la", "lv", "septum"] },
+    { "title": "The route through the right side", "concepts": ["venae_cavae", "tricuspid", "pulmonary_valve", "pulmonary_artery"] },
+    { "title": "The route through the left side", "concepts": ["pulmonary_veins", "mitral", "aortic_valve", "aorta"] },
+    { "title": "Two circuits", "concepts": ["pulmonary_circ", "systemic_circ", "double_circ"] },
+    { "title": "Keeping the heart running", "concepts": ["coronary", "sa_node", "av_node"] }
+  ],
   "layout": {
     "rows": [
       { "y": 0, "label": "Right side: body to lungs",
