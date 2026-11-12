@@ -1,0 +1,222 @@
+{
+  "title": "The human heart",
+  "summary": "How blood moves through the heart, lungs and body, and what keeps it moving.",
+  "nodes": [
+    { "id": "venae_cavae", "label": "Venae cavae", "group": "vessel", "anchor": "venae_cavae", "prereqs": [], "pos": [-430, 250], "desc": "The two large veins that return blood from the body to the heart." },
+    { "id": "ra", "label": "Right atrium", "group": "chamber", "anchor": "right_atrium", "prereqs": [], "pos": [-430, 130], "desc": "The upper right chamber. It receives blood returning from the body." },
+    { "id": "tricuspid", "label": "Tricuspid valve", "group": "valve", "anchor": "tricuspid_valve", "prereqs": ["ra", "rv"], "pos": [-430, 30], "desc": "The valve between the right atrium and the right ventricle." },
+    { "id": "rv", "label": "Right ventricle", "group": "chamber", "anchor": "right_ventricle", "prereqs": ["ra"], "pos": [-430, -70], "desc": "The lower right chamber. It pumps blood to the lungs." },
+    { "id": "pulmonary_valve", "label": "Pulmonary valve", "group": "valve", "anchor": "pulmonary_valve", "prereqs": ["rv"], "pos": [-430, -170], "desc": "The valve at the exit of the right ventricle." },
+    { "id": "pulmonary_artery", "label": "Pulmonary artery", "group": "vessel", "anchor": "pulmonary_artery", "prereqs": ["rv"], "pos": [-290, -290], "desc": "The vessel that carries blood from the right ventricle to the lungs." },
+    { "id": "lungs", "label": "Lungs", "group": "site", "anchor": "lungs", "prereqs": [], "pos": [0, -370], "desc": "Where blood picks up oxygen and gives up carbon dioxide." },
+    { "id": "pulmonary_veins", "label": "Pulmonary veins", "group": "vessel", "anchor": "pulmonary_veins", "prereqs": ["lungs"], "pos": [290, -290], "desc": "The vessels that carry blood from the lungs back to the heart." },
+    { "id": "la", "label": "Left atrium", "group": "chamber", "anchor": "left_atrium", "prereqs": [], "pos": [430, -170], "desc": "The upper left chamber. It receives blood returning from the lungs." },
+    { "id": "mitral", "label": "Mitral valve", "group": "valve", "anchor": "mitral_valve", "prereqs": ["la", "lv"], "pos": [430, -70], "desc": "The valve between the left atrium and the left ventricle." },
+    { "id": "lv", "label": "Left ventricle", "group": "chamber", "anchor": "left_ventricle", "prereqs": ["la"], "pos": [430, 30], "desc": "The lower left chamber. It pumps blood to the whole body." },
+    { "id": "aortic_valve", "label": "Aortic valve", "group": "valve", "anchor": "aortic_valve", "prereqs": ["lv"], "pos": [430, 130], "desc": "The valve at the exit of the left ventricle." },
+    { "id": "aorta", "label": "Aorta", "group": "vessel", "anchor": "aorta", "prereqs": ["lv"], "pos": [430, 250], "desc": "The body's largest artery. It carries blood from the left ventricle to the body." },
+    { "id": "body", "label": "Body tissues", "group": "site", "anchor": "body", "prereqs": [], "pos": [0, 370], "desc": "Every organ and muscle that uses the oxygen blood delivers." },
+    { "id": "septum", "label": "Septum", "group": "structure", "anchor": "septum", "prereqs": ["rv", "lv"], "pos": [-40, -15], "desc": "The muscular wall that divides the right side of the heart from the left." },
+    { "id": "myocardium", "label": "Heart muscle", "group": "structure", "anchor": "myocardium", "prereqs": [], "pos": [180, 120], "desc": "The myocardium: the muscle that makes up the walls of the heart." },
+    { "id": "coronary", "label": "Coronary arteries", "group": "vessel", "anchor": "coronary_arteries", "prereqs": ["aorta", "myocardium"], "pos": [290, 200], "desc": "Small arteries on the surface of the heart that feed the heart muscle itself." },
+    { "id": "sa_node", "label": "SA node", "group": "structure", "anchor": "sa_node", "prereqs": ["ra"], "pos": [-280, 85], "desc": "The heart's natural pacemaker, a cluster of cells in the right atrium." },
+    { "id": "av_node", "label": "AV node", "group": "structure", "anchor": "av_node", "prereqs": ["sa_node"], "pos": [-110, 75], "desc": "The relay between the atria and the ventricles for the heartbeat signal." },
+    { "id": "oxy", "label": "Oxygenated blood", "group": "concept", "anchor": null, "prereqs": ["lungs"], "pos": [250, -110], "desc": "Blood carrying a full load of oxygen." },
+    { "id": "deoxy", "label": "Deoxygenated blood", "group": "concept", "anchor": null, "prereqs": ["body"], "pos": [-250, -95], "desc": "Blood that has given up much of its oxygen to the tissues." },
+    { "id": "artery", "label": "Artery", "group": "concept", "anchor": null, "prereqs": [], "pos": [-140, -150], "desc": "Any vessel that carries blood away from the heart." },
+    { "id": "vein", "label": "Vein", "group": "concept", "anchor": null, "prereqs": [], "pos": [-200, 205], "desc": "Any vessel that carries blood toward the heart." },
+    { "id": "pulmonary_circ", "label": "Pulmonary circulation", "group": "concept", "anchor": null, "prereqs": ["rv", "pulmonary_artery", "lungs"], "pos": [0, -250], "desc": "The loop from the heart to the lungs and back." },
+    { "id": "systemic_circ", "label": "Systemic circulation", "group": "concept", "anchor": null, "prereqs": ["lv", "aorta", "body"], "pos": [0, 250], "desc": "The loop from the heart to the body and back." },
+    { "id": "double_circ", "label": "Double circulation", "group": "concept", "anchor": null, "prereqs": ["pulmonary_circ", "systemic_circ"], "pos": [115, -165], "desc": "Blood passes through the heart twice on each full trip around the body." }
+  ],
+  "edges": [
+    { "id": "e_vc_ra", "source": "venae_cavae", "target": "ra", "label": "empty into", "statement": "The venae cavae empty into the right atrium." },
+    { "id": "e_ra_tri", "source": "ra", "target": "tricuspid", "label": "sends blood through", "statement": "Blood leaves the right atrium through the tricuspid valve." },
+    { "id": "e_tri_rv", "source": "tricuspid", "target": "rv", "label": "opens into", "statement": "The tricuspid valve opens into the right ventricle." },
+    { "id": "e_rv_pv", "source": "rv", "target": "pulmonary_valve", "label": "pumps through", "statement": "The right ventricle pumps blood out through the pulmonary valve." },
+    { "id": "e_pv_pa", "source": "pulmonary_valve", "target": "pulmonary_artery", "label": "opens into", "statement": "The pulmonary valve opens into the pulmonary artery." },
+    { "id": "e_pa_lungs", "source": "pulmonary_artery", "target": "lungs", "label": "carries deoxygenated blood to", "statement": "The pulmonary artery carries deoxygenated blood to the lungs." },
+    { "id": "e_lungs_pvn", "source": "lungs", "target": "pulmonary_veins", "label": "return oxygenated blood via", "statement": "Oxygenated blood leaves the lungs in the pulmonary veins." },
+    { "id": "e_pvn_la", "source": "pulmonary_veins", "target": "la", "label": "empty into", "statement": "The pulmonary veins empty into the left atrium." },
+    { "id": "e_la_mit", "source": "la", "target": "mitral", "label": "sends blood through", "statement": "Blood leaves the left atrium through the mitral valve." },
+    { "id": "e_mit_lv", "source": "mitral", "target": "lv", "label": "opens into", "statement": "The mitral valve opens into the left ventricle." },
+    { "id": "e_lv_av", "source": "lv", "target": "aortic_valve", "label": "pumps through", "statement": "The left ventricle pumps blood out through the aortic valve." },
+    { "id": "e_av_aorta", "source": "aortic_valve", "target": "aorta", "label": "opens into", "statement": "The aortic valve opens into the aorta." },
+    { "id": "e_aorta_body", "source": "aorta", "target": "body", "label": "carries oxygenated blood to", "statement": "The aorta carries oxygenated blood to the body tissues." },
+    { "id": "e_body_vc", "source": "body", "target": "venae_cavae", "label": "return deoxygenated blood via", "statement": "Deoxygenated blood returns from the body in the venae cavae." },
+    { "id": "e_sep_rv", "source": "septum", "target": "rv", "label": "walls off", "statement": "The septum separates the right ventricle from the left side, so the two bloodstreams do not mix." },
+    { "id": "e_sep_lv", "source": "septum", "target": "lv", "label": "walls off", "statement": "The septum separates the left ventricle from the right side, so the two bloodstreams do not mix." },
+    { "id": "e_myo_lv", "source": "myocardium", "target": "lv", "label": "is thickest around", "statement": "Heart muscle is thickest around the left ventricle, because it pumps to the whole body at high pressure." },
+    { "id": "e_cor_myo", "source": "coronary", "target": "myocardium", "label": "supply oxygen to", "statement": "The coronary arteries supply the heart muscle with oxygen." },
+    { "id": "e_aorta_cor", "source": "aorta", "target": "coronary", "label": "branches into", "statement": "The coronary arteries branch off the aorta." },
+    { "id": "e_sa_ra", "source": "sa_node", "target": "ra", "label": "starts each beat in", "statement": "The SA node, in the right atrium, starts each heartbeat." },
+    { "id": "e_sa_av", "source": "sa_node", "target": "av_node", "label": "signals", "statement": "The SA node's signal spreads across the atria to the AV node." },
+    { "id": "e_av_myo", "source": "av_node", "target": "myocardium", "label": "relays the signal to ventricular", "statement": "The AV node briefly delays the signal, then relays it to the muscle of the ventricles." },
+    { "id": "e_art_pa", "source": "artery", "target": "pulmonary_artery", "label": "includes", "statement": "The pulmonary artery is an artery because it carries blood away from the heart, even though that blood is deoxygenated." },
+    { "id": "e_art_aorta", "source": "artery", "target": "aorta", "label": "includes", "statement": "The aorta is an artery because it carries blood away from the heart." },
+    { "id": "e_vein_pvn", "source": "vein", "target": "pulmonary_veins", "label": "includes", "statement": "The pulmonary veins are veins because they carry blood toward the heart, even though that blood is oxygenated." },
+    { "id": "e_vein_vc", "source": "vein", "target": "venae_cavae", "label": "includes", "statement": "The venae cavae are veins because they carry blood toward the heart." },
+    { "id": "e_pc_lungs", "source": "pulmonary_circ", "target": "lungs", "label": "exchanges gases in", "statement": "Pulmonary circulation takes blood to the lungs for gas exchange." },
+    { "id": "e_pc_rv", "source": "pulmonary_circ", "target": "rv", "label": "is driven by", "statement": "The right ventricle drives pulmonary circulation." },
+    { "id": "e_sc_lv", "source": "systemic_circ", "target": "lv", "label": "is driven by", "statement": "The left ventricle drives systemic circulation." },
+    { "id": "e_sc_body", "source": "systemic_circ", "target": "body", "label": "delivers oxygen to", "statement": "Systemic circulation delivers oxygen to the body tissues." },
+    { "id": "e_dc_pc", "source": "double_circ", "target": "pulmonary_circ", "label": "comprises", "statement": "Double circulation includes a separate loop through the lungs, after which blood returns to the heart." },
+    { "id": "e_dc_sc", "source": "double_circ", "target": "systemic_circ", "label": "comprises", "statement": "Double circulation includes a separate loop through the body, after which blood returns to the heart." },
+    { "id": "e_deoxy_rv", "source": "deoxy", "target": "rv", "label": "fills the right side, including", "statement": "The right side of the heart handles deoxygenated blood." },
+    { "id": "e_oxy_lv", "source": "oxy", "target": "lv", "label": "fills the left side, including", "statement": "The left side of the heart handles oxygenated blood." },
+    { "id": "e_lungs_oxy", "source": "lungs", "target": "oxy", "label": "produce", "statement": "Blood becomes oxygenated in the lungs." },
+    { "id": "e_body_deoxy", "source": "body", "target": "deoxy", "label": "produce", "statement": "Blood becomes deoxygenated as body tissues take up its oxygen." }
+  ],
+  "misconceptions": [
+    { "id": "m_single_loop", "label": "Single-loop circulation", "belief": "Blood travels heart, lungs, body, heart in one loop.", "correction": "There are two loops. Blood returns to the heart after the lungs, and the left side pumps it out again to the body.", "nodes": ["double_circ", "pulmonary_circ", "pulmonary_veins"], "edges": ["e_dc_pc", "e_pvn_la"] },
+    { "id": "m_artery_oxygen", "label": "Arteries defined by oxygen", "belief": "Arteries always carry oxygenated blood and veins always carry deoxygenated blood.", "correction": "Vessels are named by direction: arteries carry blood away from the heart, veins toward it. The pulmonary artery carries deoxygenated blood and the pulmonary veins carry oxygenated blood.", "nodes": ["artery", "vein", "pulmonary_artery", "pulmonary_veins"], "edges": ["e_art_pa", "e_vein_pvn"] },
+    { "id": "m_vessel_direction", "label": "Artery and vein direction reversed", "belief": "Veins carry blood away from the heart and arteries carry it back.", "correction": "It is the other way round: arteries carry blood away from the heart and veins carry it back.", "nodes": ["artery", "vein"], "edges": ["e_art_aorta", "e_vein_vc"] },
+    { "id": "m_septum_open", "label": "The two sides mix", "belief": "Blood crosses directly between the right and left sides of the heart.", "correction": "In a healthy heart the septum is a solid wall. Blood only gets from the right side to the left by going through the lungs.", "nodes": ["septum"], "edges": ["e_sep_rv", "e_sep_lv"] },
+    { "id": "m_chamber_feeding", "label": "The heart feeds on the blood inside it", "belief": "Heart muscle takes its oxygen from the blood passing through the chambers.", "correction": "The walls are too thick for that. The heart muscle has its own supply, the coronary arteries, which branch off the aorta.", "nodes": ["coronary", "myocardium"], "edges": ["e_cor_myo"] },
+    { "id": "m_atria_pump", "label": "Atria and ventricles swapped", "belief": "The atria pump blood out of the heart and the ventricles receive it.", "correction": "Atria receive blood coming into the heart. Ventricles pump it out.", "nodes": ["ra", "la", "rv", "lv"], "edges": [] },
+    { "id": "m_valves_pump", "label": "Valves push blood", "belief": "Valves actively push blood forward.", "correction": "Valves are passive flaps. Pressure opens and closes them, and their job is to stop blood flowing backward.", "nodes": ["tricuspid", "mitral", "pulmonary_valve", "aortic_valve"], "edges": [] },
+    { "id": "m_brain_beat", "label": "The brain triggers each beat", "belief": "The brain sends a signal for every heartbeat.", "correction": "The heart starts its own beats at the SA node. The nervous system only speeds the rate up or slows it down.", "nodes": ["sa_node"], "edges": ["e_sa_ra"] }
+  ],
+  "items": [
+    { "id": "q1", "type": "mc", "prompt": "Blood returning from the body enters the heart at which chamber?", "edges": ["e_vc_ra", "e_body_vc"],
+      "options": [
+        { "id": "a", "text": "Right atrium", "correct": true },
+        { "id": "b", "text": "Left atrium" },
+        { "id": "c", "text": "Right ventricle", "misconception": "m_atria_pump" },
+        { "id": "d", "text": "Left ventricle", "misconception": "m_atria_pump" }
+      ] },
+    { "id": "q2", "type": "mc", "prompt": "Which vessel carries blood from the heart to the lungs?", "edges": ["e_pv_pa", "e_pa_lungs", "e_art_pa"],
+      "options": [
+        { "id": "a", "text": "Pulmonary artery", "correct": true },
+        { "id": "b", "text": "Pulmonary veins", "misconception": "m_vessel_direction" },
+        { "id": "c", "text": "Aorta" },
+        { "id": "d", "text": "Venae cavae" }
+      ] },
+    { "id": "q3", "type": "mc", "prompt": "The blood inside the pulmonary artery is best described as:", "edges": ["e_pa_lungs", "e_art_pa", "e_deoxy_rv"],
+      "options": [
+        { "id": "a", "text": "Deoxygenated, on its way to pick up oxygen", "correct": true },
+        { "id": "b", "text": "Oxygenated, because all arteries carry oxygenated blood", "misconception": "m_artery_oxygen" },
+        { "id": "c", "text": "Oxygenated, because it has just left the heart", "misconception": "m_artery_oxygen" },
+        { "id": "d", "text": "An even mix of oxygenated and deoxygenated blood", "misconception": "m_septum_open" }
+      ] },
+    { "id": "q4", "type": "mc", "prompt": "What makes a blood vessel an artery?", "edges": ["e_art_pa", "e_art_aorta"],
+      "options": [
+        { "id": "a", "text": "It carries blood away from the heart", "correct": true },
+        { "id": "b", "text": "It carries oxygen-rich blood", "misconception": "m_artery_oxygen" },
+        { "id": "c", "text": "It carries blood toward the heart", "misconception": "m_vessel_direction" },
+        { "id": "d", "text": "It connects directly to the lungs" }
+      ] },
+    { "id": "q5", "type": "mc", "prompt": "Blood has just picked up oxygen in the lungs. Where does it go next?", "edges": ["e_lungs_pvn", "e_pvn_la", "e_dc_pc"],
+      "options": [
+        { "id": "a", "text": "Back to the heart, into the left atrium", "correct": true },
+        { "id": "b", "text": "Straight out to the body tissues", "misconception": "m_single_loop" },
+        { "id": "c", "text": "Straight into the aorta", "misconception": "m_single_loop" },
+        { "id": "d", "text": "Back to the heart, into the right atrium" }
+      ] },
+    { "id": "q6", "type": "mc", "prompt": "Which valve does blood pass through on its way from the left atrium to the left ventricle?", "edges": ["e_la_mit", "e_mit_lv"],
+      "options": [
+        { "id": "a", "text": "Mitral valve", "correct": true },
+        { "id": "b", "text": "Tricuspid valve" },
+        { "id": "c", "text": "Aortic valve" },
+        { "id": "d", "text": "Pulmonary valve" }
+      ] },
+    { "id": "q7", "type": "mc", "prompt": "The tricuspid valve sits between:", "edges": ["e_ra_tri", "e_tri_rv"],
+      "options": [
+        { "id": "a", "text": "The right atrium and the right ventricle", "correct": true },
+        { "id": "b", "text": "The left atrium and the left ventricle" },
+        { "id": "c", "text": "The right ventricle and the pulmonary artery" },
+        { "id": "d", "text": "The right atrium and the left atrium", "misconception": "m_septum_open" }
+      ] },
+    { "id": "q8", "type": "mc", "prompt": "Which chamber pumps blood into the aorta?", "edges": ["e_lv_av", "e_av_aorta", "e_sc_lv"],
+      "options": [
+        { "id": "a", "text": "Left ventricle", "correct": true },
+        { "id": "b", "text": "Right ventricle" },
+        { "id": "c", "text": "Left atrium", "misconception": "m_atria_pump" },
+        { "id": "d", "text": "Right atrium", "misconception": "m_atria_pump" }
+      ] },
+    { "id": "q9", "type": "mc", "prompt": "Why is the wall of the left ventricle thicker than the wall of the right ventricle?", "edges": ["e_myo_lv", "e_sc_lv"],
+      "options": [
+        { "id": "a", "text": "It has to push blood around the whole body, at higher pressure", "correct": true },
+        { "id": "b", "text": "It holds much more blood than the right ventricle" },
+        { "id": "c", "text": "It has to pull blood in from the lungs" },
+        { "id": "d", "text": "The right ventricle does not pump; blood drains from it" }
+      ] },
+    { "id": "q10", "type": "mc", "prompt": "How does the heart muscle itself get oxygen?", "edges": ["e_cor_myo", "e_aorta_cor"],
+      "options": [
+        { "id": "a", "text": "Through the coronary arteries, which branch off the aorta", "correct": true },
+        { "id": "b", "text": "It absorbs oxygen from the blood passing through its chambers", "misconception": "m_chamber_feeding" },
+        { "id": "c", "text": "Directly from the pulmonary veins as they enter the heart" },
+        { "id": "d", "text": "It does not need a supply of its own" }
+      ] },
+    { "id": "q11", "type": "mc", "prompt": "What normally starts each heartbeat?", "edges": ["e_sa_ra", "e_sa_av"],
+      "options": [
+        { "id": "a", "text": "The SA node, in the wall of the right atrium", "correct": true },
+        { "id": "b", "text": "A signal sent from the brain for every beat", "misconception": "m_brain_beat" },
+        { "id": "c", "text": "The AV node" },
+        { "id": "d", "text": "The left ventricle, when it fills with blood" }
+      ] },
+    { "id": "q12", "type": "mc", "prompt": "What does the AV node do?", "edges": ["e_sa_av", "e_av_myo"],
+      "options": [
+        { "id": "a", "text": "Briefly delays the signal from the atria, then passes it to the ventricles", "correct": true },
+        { "id": "b", "text": "Starts each heartbeat" },
+        { "id": "c", "text": "Opens and closes the valves", "misconception": "m_valves_pump" },
+        { "id": "d", "text": "Adds oxygen to the blood" }
+      ] },
+    { "id": "q13", "type": "mc", "prompt": "What is the job of the septum?", "edges": ["e_sep_rv", "e_sep_lv"],
+      "options": [
+        { "id": "a", "text": "It walls off the right side from the left, so the two bloodstreams stay apart", "correct": true },
+        { "id": "b", "text": "It lets blood pass from the right side to the left", "misconception": "m_septum_open" },
+        { "id": "c", "text": "It separates the atria from the ventricles" },
+        { "id": "d", "text": "It contracts to open the valves", "misconception": "m_valves_pump" }
+      ] },
+    { "id": "q14", "type": "mc", "prompt": "What is the main job of the heart's valves?", "edges": ["e_tri_rv", "e_pv_pa", "e_mit_lv", "e_av_aorta"],
+      "options": [
+        { "id": "a", "text": "To keep blood flowing in one direction", "correct": true },
+        { "id": "b", "text": "To push blood forward into the next chamber", "misconception": "m_valves_pump" },
+        { "id": "c", "text": "To add oxygen to the blood" },
+        { "id": "d", "text": "To keep the right and left sides apart" }
+      ] },
+    { "id": "q15", "type": "mc", "prompt": "A red blood cell is in the right ventricle. Which route does it take next?", "edges": ["e_rv_pv", "e_pv_pa", "e_pa_lungs", "e_lungs_pvn", "e_pvn_la"],
+      "options": [
+        { "id": "a", "text": "Pulmonary artery, lungs, pulmonary veins, left atrium", "correct": true },
+        { "id": "b", "text": "Pulmonary artery, lungs, aorta, body", "misconception": "m_single_loop" },
+        { "id": "c", "text": "Pulmonary veins, lungs, pulmonary artery, left atrium", "misconception": "m_vessel_direction" },
+        { "id": "d", "text": "Aorta, body, venae cavae, right atrium" }
+      ] },
+    { "id": "q16", "type": "mc", "prompt": "What pushes blood through the lungs?", "edges": ["e_pc_rv", "e_pc_lungs", "e_dc_pc"],
+      "options": [
+        { "id": "a", "text": "The right ventricle", "correct": true },
+        { "id": "b", "text": "The left ventricle" },
+        { "id": "c", "text": "One push from the heart sends blood through the lungs and then on to the body", "misconception": "m_single_loop" },
+        { "id": "d", "text": "The right atrium", "misconception": "m_atria_pump" }
+      ] },
+    { "id": "q17", "type": "mc", "prompt": "The blood inside the pulmonary veins is:", "edges": ["e_lungs_pvn", "e_vein_pvn", "e_oxy_lv", "e_lungs_oxy"],
+      "options": [
+        { "id": "a", "text": "Oxygenated, on its way back to the heart", "correct": true },
+        { "id": "b", "text": "Deoxygenated, because all veins carry deoxygenated blood", "misconception": "m_artery_oxygen" },
+        { "id": "c", "text": "Deoxygenated, on its way to the lungs", "misconception": "m_vessel_direction" },
+        { "id": "d", "text": "An even mix of oxygenated and deoxygenated blood", "misconception": "m_septum_open" }
+      ] },
+    { "id": "q18", "type": "mc", "prompt": "A coronary artery becomes blocked. What is most directly at risk?", "edges": ["e_cor_myo"],
+      "options": [
+        { "id": "a", "text": "The oxygen supply to part of the heart muscle", "correct": true },
+        { "id": "b", "text": "Blood flow to the lungs" },
+        { "id": "c", "text": "The opening of the heart valves" },
+        { "id": "d", "text": "The brain's signal to the heart", "misconception": "m_brain_beat" }
+      ] },
+    { "id": "w1", "type": "written", "omissionCounts": true,
+      "prompt": "Follow a drop of blood from the moment it returns from the body until it is pumped back out to the body. Name each chamber, valve and vessel it passes, in order.",
+      "edges": ["e_vc_ra", "e_ra_tri", "e_tri_rv", "e_rv_pv", "e_pv_pa", "e_pa_lungs", "e_lungs_pvn", "e_pvn_la", "e_la_mit", "e_mit_lv", "e_lv_av", "e_av_aorta", "e_aorta_body"] },
+    { "id": "w2", "type": "written", "omissionCounts": false,
+      "prompt": "A classmate says: \"Arteries carry oxygenated blood and veins carry deoxygenated blood.\" Is your classmate right? Explain, with examples.",
+      "edges": ["e_art_pa", "e_art_aorta", "e_vein_pvn", "e_vein_vc", "e_pa_lungs", "e_lungs_pvn"] },
+    { "id": "w3", "type": "written", "omissionCounts": false,
+      "prompt": "The heart is often called a double pump. What does each side do, and why do the two sides need to stay separate?",
+      "edges": ["e_pc_rv", "e_sc_lv", "e_dc_pc", "e_dc_sc", "e_sep_rv", "e_sep_lv", "e_deoxy_rv", "e_oxy_lv", "e_pc_lungs", "e_sc_body", "e_body_deoxy"] }
+  ],
+  "sampleLearner": {
+    "q1": ["a", 3], "q2": ["c", 2], "q3": ["b", 3], "q4": ["b", 3], "q5": ["b", 3], "q6": ["a", 2],
+    "q7": ["a", 1], "q8": ["a", 3], "q9": ["a", 2], "q10": ["b", 3], "q11": ["a", 2], "q12": ["b", 1],
+    "q13": ["a", 3], "q14": ["a", 2], "q15": ["b", 2], "q16": ["c", 3], "q17": ["b", 3], "q18": ["a", 1]
+  }
+}

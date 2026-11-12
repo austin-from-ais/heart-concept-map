@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Heart knowledge map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="bar">
+    <p class="bar-title">Heart knowledge map</p>
+    <ol class="stages" aria-label="Stages">
+      <li data-stage="test">Test</li>
+      <li data-stage="map">Concept map</li>
+      <li data-stage="vr" class="later">VR scene <span>(not built yet)</span></li>
+    </ol>
+  </header>
+  <main id="app" tabindex="-1"></main>
+  <script src="vendor/cytoscape.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
