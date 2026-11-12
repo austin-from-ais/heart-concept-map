@@ -1,63 +1,80 @@
-// Lays the concept map out left to right as a learning progression.
-// A concept's column is one more than the deepest column of anything it builds on,
-// so everything a concept needs is always somewhere to its left.
+// Lays the concept map out on a grid described in the domain data ("layout.rows").
+// Each row is a channel read left to right. A link is drawn only when it can be a
+// straight horizontal or vertical line with nothing in its way; the few links that
+// cannot are left off the picture (they still count, and still show in the details).
+//
+// A concept may sit in more than one cell (the lungs end one channel and start the
+// next), so drawn boxes have their own ids and point back to their concept.
 
-export const COLUMN_GAP = 270;
-export const ROW_GAP = 66;
+export const COLUMN_GAP = 176;
+export const ROW_GAP = 112;
+export const BOX_WIDTH = 136;
+export const BOX_HEIGHT = 50;
 
-export function layoutByLevel(domain) {
-  const byId = new Map(domain.nodes.map((n) => [n.id, n]));
-  const level = new Map();
-  const levelOf = (id, seen = new Set()) => {
-    if (level.has(id)) return level.get(id);
-    if (seen.has(id)) return 0; // a prerequisite loop in the data; do not recurse forever
-    seen.add(id);
-    const prereqs = byId.get(id).prereqs;
-    const value = prereqs.length ? 1 + Math.max(...prereqs.map((p) => levelOf(p, seen))) : 0;
-    level.set(id, value);
-    return value;
+export function layoutGrid(domain) {
+  const rows = domain.layout.rows;
+  const boxes = [];
+  const grid = new Map(); // "row,column" -> box
+  const seen = new Map();
+
+  rows.forEach((row, r) => {
+    row.cells.forEach((concept, c) => {
+      if (!concept) return;
+      const count = (seen.get(concept) || 0) + 1;
+      seen.set(concept, count);
+      const box = { id: count === 1 ? concept : `${concept}~${count}`, concept, row: r, column: c, x: c * COLUMN_GAP, y: row.y * ROW_GAP };
+      boxes.push(box);
+      grid.set(`${r},${c}`, box);
+    });
+  });
+
+  const clearBetween = (a, b) => {
+    if (a.row === b.row) {
+      for (let c = Math.min(a.column, b.column) + 1; c < Math.max(a.column, b.column); c++) {
+        if (grid.has(`${a.row},${c}`)) return false;
+      }
+      return true;
+    }
+    if (a.column === b.column) {
+      for (let r = Math.min(a.row, b.row) + 1; r < Math.max(a.row, b.row); r++) {
+        if (grid.has(`${r},${a.column}`)) return false;
+      }
+      return true;
+    }
+    return false;
   };
-  for (const node of domain.nodes) levelOf(node.id);
 
-  const columnCount = Math.max(...level.values()) + 1;
-  const columns = Array.from({ length: columnCount }, () => []);
-  for (const node of domain.nodes) columns[level.get(node.id)].push(node.id);
-
-  const neighbours = new Map(domain.nodes.map((n) => [n.id, []]));
+  const links = [];
+  const undrawn = [];
   for (const edge of domain.edges) {
-    neighbours.get(edge.source).push(edge.target);
-    neighbours.get(edge.target).push(edge.source);
+    let best = null;
+    for (const a of boxes.filter((b) => b.concept === edge.source)) {
+      for (const b of boxes.filter((x) => x.concept === edge.target)) {
+        if (!clearBetween(a, b)) continue;
+        const length = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        if (!best || length < best.length) best = { id: edge.id, source: a.id, target: b.id, label: edge.label, length };
+      }
+    }
+    if (best) links.push(best);
+    else undrawn.push(edge.id);
   }
 
-  const y = new Map();
-  const place = (column) => {
-    column.forEach((id, row) => y.set(id, (row - (column.length - 1) / 2) * ROW_GAP));
-  };
-  columns.forEach(place);
+  const bands = rows
+    .map((row, r) => ({ row, r }))
+    .filter(({ row }) => row.label)
+    .map(({ row, r }) => {
+      const columns = row.cells.map((cell, c) => (cell ? c : -1)).filter((c) => c >= 0);
+      const first = Math.min(...columns);
+      const last = Math.max(...columns);
+      return {
+        id: `band-${r}`,
+        label: row.label,
+        x: ((first + last) / 2) * COLUMN_GAP,
+        y: row.y * ROW_GAP,
+        width: (last - first) * COLUMN_GAP + BOX_WIDTH + 36,
+        height: BOX_HEIGHT + 30,
+      };
+    });
 
-  // Pull each concept toward the concepts it links to, a few passes in each direction,
-  // so links run roughly level and cross less.
-  const sweep = (column, others) => {
-    const target = new Map(
-      column.map((id) => {
-        const linked = neighbours.get(id).filter((n) => others(n));
-        const mean = linked.length ? linked.reduce((sum, n) => sum + y.get(n), 0) / linked.length : y.get(id);
-        return [id, mean];
-      }),
-    );
-    column.sort((a, b) => target.get(a) - target.get(b));
-    place(column);
-  };
-  for (let pass = 0; pass < 6; pass++) {
-    for (let c = 1; c < columnCount; c++) sweep(columns[c], (n) => level.get(n) < c);
-    for (let c = columnCount - 2; c >= 0; c--) sweep(columns[c], (n) => level.get(n) > c);
-  }
-
-  const positions = {};
-  for (const node of domain.nodes) {
-    positions[node.id] = { x: level.get(node.id) * COLUMN_GAP, y: y.get(node.id), column: level.get(node.id) };
-  }
-  const tallest = Math.max(...columns.map((c) => c.length));
-  const headingY = -((tallest - 1) / 2) * ROW_GAP - 62;
-  return { positions, columnCount, headingY };
+  return { boxes, links, undrawn, bands };
 }

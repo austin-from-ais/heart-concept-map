@@ -1,5 +1,5 @@
 import { buildModel, STATES, STATE_LABEL, CONFIDENCE_LABEL } from "./model.js";
-import { layoutByLevel, COLUMN_GAP, ROW_GAP } from "./layout.js";
+import { layoutGrid, BOX_WIDTH, BOX_HEIGHT } from "./layout.js";
 
 const app = document.getElementById("app");
 const SAVE_KEY = "concept-map-session-v1";
@@ -88,6 +88,14 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && cy && !cy.$(":selected").empty()) cy.elements().unselect();
 });
 
+function loadSampleLearner() {
+  session = newSession();
+  session.sample = true;
+  for (const [itemId, [optionId, confidence]] of Object.entries(domain.sampleLearner)) {
+    session.responses[itemId] = { optionId, confidence };
+  }
+}
+
 /* ---------- Intro ---------- */
 
 function showIntro() {
@@ -125,11 +133,7 @@ function showIntro() {
   const resumeTest = document.getElementById("continue");
   if (resumeTest) resumeTest.onclick = () => go("test");
   document.getElementById("sample").onclick = () => {
-    session = newSession();
-    session.sample = true;
-    for (const [itemId, [optionId, confidence]] of Object.entries(domain.sampleLearner)) {
-      session.responses[itemId] = { optionId, confidence };
-    }
+    loadSampleLearner();
     go("map");
   };
   if (saved) {
@@ -329,6 +333,7 @@ function showMap() {
         }
 
         <div class="actions"><button class="quiet small" id="retake">Back to the start</button></div>
+        <p class="hint">The lungs and the body tissues each appear twice on the map: at the end of one path and the start of the next.</p>
       </aside>
 
       <section class="canvas-wrap" aria-label="Concept map">
@@ -337,8 +342,8 @@ function showMap() {
             <button id="view-mine" aria-pressed="true">${session.sample ? "Learner's knowledge" : "Your knowledge"}</button>
             <button id="view-expert" aria-pressed="false">Full map</button>
           </div>
-          <label><input type="checkbox" id="labels" checked> Show link labels</label>
-          <span class="reading-hint">Read left to right: each column builds on the ones before it.</span>
+          <label><input type="checkbox" id="labels"> Show link labels</label>
+          <span class="reading-hint">Each band is one path, read left to right. Select a box or a link for details.</span>
           <span class="spacer"></span>
           <button class="quiet small" id="fit">Fit to window</button>
         </div>
@@ -355,17 +360,27 @@ function showMap() {
   );
 
   const detail = document.getElementById("detail");
-  const showHelp = () => {
-    detail.innerHTML = `<h2>Select a concept</h2>
-      <p class="empty">Select any box or link on the map to see why it has its status, which answers it came from, and what it connects to.</p>
-      <p class="empty">Drag boxes to rearrange the map. Scroll to zoom. Press Escape or Close to put a selection away.</p>`;
+  const closeDetail = () => {
+    detail.hidden = true;
+    detail.innerHTML = "";
   };
-  showHelp();
+  closeDetail();
 
   // On a narrow screen the details sit below the map, so bring them into view.
   const stacked = () => window.matchMedia("(max-width: 1000px)").matches;
   const revealDetail = () => {
-    if (stacked()) detail.scrollIntoView({ block: "start" });
+    detail.hidden = false;
+    detail.scrollTop = 0;
+    if (stacked()) {
+      detail.scrollIntoView({ block: "start" });
+      return;
+    }
+    // The drawer covers the right of the map; slide the map over if the selection is under it.
+    const selected = cy.$(":selected");
+    if (selected.empty()) return;
+    const box = selected.renderedBoundingBox();
+    const visibleRight = cy.width() - detail.offsetWidth - 30;
+    if (box.x2 > visibleRight) cy.animate({ panBy: { x: visibleRight - box.x2, y: 0 }, duration: 200 });
   };
 
   drawGraph(model, {
@@ -377,7 +392,7 @@ function showMap() {
       detail.innerHTML = edgeDetailHtml(id, model);
       revealDetail();
     },
-    onNothing: showHelp,
+    onNothing: closeDetail,
   });
 
   // Any "data-node" button, in either side panel, selects that concept on the map.
@@ -389,60 +404,56 @@ function showMap() {
     }
     const button = event.target.closest("[data-node]");
     if (!button || !cy) return;
-    const node = cy.getElementById(button.dataset.node);
+    const node = cy.nodes(`[concept = "${button.dataset.node}"]`).first();
     cy.elements().unselect();
     node.select();
     cy.animate({ center: { eles: node }, duration: 250 });
   });
 
   document.getElementById("retake").onclick = () => go("home");
-  document.getElementById("fit").onclick = () => cy.fit(undefined, 40);
-  document.getElementById("labels").onchange = (event) => cy.edges().toggleClass("nolabel", !event.target.checked);
+  document.getElementById("fit").onclick = () => cy.fit(undefined, 24);
+  document.getElementById("labels").onchange = (event) => cy.edges().toggleClass("labelled", event.target.checked);
   const mine = document.getElementById("view-mine");
   const expert = document.getElementById("view-expert");
   const setView = (isExpert) => {
     mine.setAttribute("aria-pressed", String(!isExpert));
     expert.setAttribute("aria-pressed", String(isExpert));
-    cy.elements().not(".heading").toggleClass("expert", isExpert);
+    cy.elements().not(".band").toggleClass("expert", isExpert);
   };
   mine.onclick = () => setView(false);
   expert.onclick = () => setView(true);
 }
 
 function drawGraph(model, handlers) {
-  const layout = layoutByLevel(domain);
+  const layout = layoutGrid(domain);
   const elements = [
-    // One heading per column. They are part of the picture, not something to select.
-    ...Array.from({ length: layout.columnCount }, (_, column) => ({
+    // A band behind each path. Part of the picture, not something to select.
+    ...layout.bands.map((band) => ({
       group: "nodes",
-      data: { id: `heading-${column}`, label: column === 0 ? "Step 1: start here" : `Step ${column + 1}`, width: 150 },
-      position: { x: column * COLUMN_GAP, y: layout.headingY },
-      classes: "heading",
+      // "shift" moves the centred label to the band's left end (7.3px is the average letter width).
+      data: { id: band.id, label: band.label, width: band.width, height: band.height, shift: (band.label.length * 7.3 - band.width) / 2 + 6 },
+      position: { x: band.x, y: band.y },
+      classes: "band",
       selectable: false,
       grabbable: false,
     })),
-    ...domain.nodes.map((n) => ({
+    ...layout.boxes.map((box) => ({
       group: "nodes",
-      data: { id: n.id, label: n.label, width: Math.max(72, n.label.length * 7.4 + 26) },
-      position: { x: layout.positions[n.id].x, y: layout.positions[n.id].y },
-      classes: `${model.nodes[n.id].state} ${model.nodes[n.id].next ? "next" : ""}`,
+      data: { id: box.id, concept: box.concept, label: nodeById(box.concept).label },
+      position: { x: box.x, y: box.y },
+      classes: `concept ${model.nodes[box.concept].state} ${model.nodes[box.concept].next ? "next" : ""}`,
+      grabbable: false, // boxes stay on the grid so every link stays straight
     })),
-    ...domain.edges.map((e) => {
-      const from = layout.positions[e.source];
-      const to = layout.positions[e.target];
-      // A link between two concepts in the same column would run straight through
-      // the boxes between them, so bow it out to the side.
-      const rowsApart = Math.round(Math.abs(from.y - to.y) / ROW_GAP);
-      const bowed = from.column === to.column && rowsApart > 1;
-      return {
-        group: "edges",
-        data: { id: e.id, source: e.source, target: e.target, label: e.label, bow: 50 + 22 * rowsApart },
-        classes: `${model.edges[e.id].state} ${bowed ? "bowed" : ""}`,
-      };
-    }),
+    ...layout.links.map((link) => ({
+      group: "edges",
+      data: { id: link.id, source: link.source, target: link.target, label: link.label },
+      classes: model.edges[link.id].state,
+    })),
   ];
 
   const font = '"Bricolage Grotesque", "Segoe UI", sans-serif';
+  // Drawing order is fixed: bands at the back, then links, then boxes.
+  const layer = (z) => ({ "z-index-compare": "manual", "z-index": z });
   cy = cytoscape({
     container: document.getElementById("cy"),
     elements,
@@ -451,71 +462,82 @@ function drawGraph(model, handlers) {
     maxZoom: 2.5,
     style: [
       {
-        selector: "node",
+        selector: "node.band",
         style: {
-          shape: "round-rectangle", width: "data(width)", height: 34,
-          label: "data(label)", "text-valign": "center", "text-halign": "center",
-          "font-family": font, "font-size": 12.5, "font-weight": 600,
-          "background-color": COLOR.surface, color: COLOR.ink,
-          "border-width": 2, "border-color": COLOR.ink, "border-style": "solid",
+          ...layer(0), shape: "round-rectangle", width: "data(width)", height: "data(height)", events: "no",
+          "background-color": COLOR.surface, "background-opacity": 0.75, "border-width": 1, "border-color": COLOR.line,
+          // The name of the path sits above the band at its left end, clear of every link.
+          label: "data(label)", "text-valign": "top", "text-halign": "center",
+          "text-margin-x": "data(shift)", "text-margin-y": -5,
+          "font-family": font, "font-size": 14, "font-weight": 700, color: COLOR.ink,
         },
       },
       {
-        selector: "node.heading",
+        selector: "node.concept",
         style: {
-          "background-opacity": 0, "border-width": 0, events: "no",
-          "font-size": 13.5, "font-weight": 700, color: COLOR.muted,
+          ...layer(2), shape: "round-rectangle", width: BOX_WIDTH, height: BOX_HEIGHT,
+          label: "data(label)", "text-valign": "center", "text-halign": "center",
+          "text-wrap": "wrap", "text-max-width": BOX_WIDTH - 14,
+          "font-family": font, "font-size": 15, "font-weight": 600, "line-height": 1.2,
+          "background-color": COLOR.surface, color: COLOR.ink,
+          "border-width": 2, "border-color": COLOR.ink, "border-style": "solid",
         },
       },
       { selector: "node.known", style: { "background-color": COLOR.known, "border-color": COLOR.known, color: "#fff" } },
       { selector: "node.shaky", style: { "background-color": COLOR.shakySoft, "border-color": COLOR.shaky } },
       { selector: "node.gap", style: { "border-style": "dashed" } },
       { selector: "node.misconception", style: { "background-color": COLOR.misconception, "border-color": COLOR.misconception, color: "#fff" } },
-      { selector: "node.untested", style: { "background-opacity": 0, "border-style": "dotted", "border-color": COLOR.muted, color: COLOR.muted } },
+      { selector: "node.untested", style: { "background-color": COLOR.paper, "border-style": "dotted", "border-color": COLOR.muted, color: COLOR.muted } },
       { selector: "node.next", style: { "underlay-color": COLOR.halo, "underlay-opacity": 0.9, "underlay-padding": 6, "underlay-shape": "round-rectangle" } },
       {
         selector: "edge",
         style: {
-          "curve-style": "bezier", width: 2, "line-color": COLOR.ink,
-          "target-arrow-shape": "triangle", "target-arrow-color": COLOR.ink, "arrow-scale": 0.9,
-          label: "data(label)", "font-family": font, "font-size": 9.5, color: COLOR.muted,
-          "text-rotation": "autorotate", "text-background-color": COLOR.paper,
-          "text-background-opacity": 0.92, "text-background-padding": 2,
+          ...layer(1), "curve-style": "straight", width: 2.5, "line-color": COLOR.ink,
+          "target-arrow-shape": "triangle", "target-arrow-color": COLOR.ink, "arrow-scale": 1,
+          "font-family": font, "font-size": 11, color: COLOR.ink,
+          "text-background-color": COLOR.surface, "text-background-opacity": 1, "text-background-padding": 3,
+          "text-background-shape": "roundrectangle", "text-border-width": 1, "text-border-color": COLOR.line, "text-border-opacity": 1,
         },
       },
-      {
-        selector: "edge.bowed",
-        style: { "curve-style": "unbundled-bezier", "control-point-distances": "data(bow)", "control-point-weights": 0.5 },
-      },
-      { selector: "edge.known", style: { "line-color": COLOR.known, "target-arrow-color": COLOR.known, width: 2.5 } },
+      // Link labels stay out of the way until asked for, or until a link is in focus.
+      { selector: "edge.labelled, edge.focus", style: { label: "data(label)", ...layer(3) } },
+      { selector: "edge.known", style: { "line-color": COLOR.known, "target-arrow-color": COLOR.known, width: 3 } },
       { selector: "edge.shaky", style: { "line-color": COLOR.shaky, "target-arrow-color": COLOR.shaky } },
-      { selector: "edge.gap", style: { "line-style": "dashed", width: 1.5 } },
-      { selector: "edge.misconception", style: { "line-color": COLOR.misconception, "target-arrow-color": COLOR.misconception, width: 3 } },
-      { selector: "edge.untested", style: { "line-color": COLOR.line, "target-arrow-color": COLOR.line, "line-style": "dotted", width: 1.5 } },
-      { selector: "edge.nolabel", style: { label: "" } },
+      { selector: "edge.gap", style: { "line-style": "dashed", width: 2 } },
+      { selector: "edge.misconception", style: { "line-color": COLOR.misconception, "target-arrow-color": COLOR.misconception, width: 3.5 } },
+      { selector: "edge.untested", style: { "line-color": COLOR.muted, "target-arrow-color": COLOR.muted, "line-style": "dotted", width: 2 } },
       // Full map: every concept and link drawn the same, with no learner overlay.
       {
         selector: "node.expert",
         style: {
-          "background-color": COLOR.surface, "background-opacity": 1, "border-color": COLOR.ink,
+          "background-color": COLOR.surface, "border-color": COLOR.ink,
           "border-style": "solid", color: COLOR.ink, "underlay-opacity": 0,
         },
       },
-      { selector: "edge.expert", style: { "line-color": COLOR.ink, "target-arrow-color": COLOR.ink, "line-style": "solid", width: 1.5 } },
-      { selector: ".dim", style: { opacity: 0.18, "underlay-opacity": 0 } },
+      { selector: "edge.expert", style: { "line-color": COLOR.ink, "target-arrow-color": COLOR.ink, "line-style": "solid", width: 2 } },
+      { selector: ".dim", style: { opacity: 0.2, "underlay-opacity": 0 } },
       { selector: "node:selected", style: { "overlay-color": COLOR.ink, "overlay-opacity": 0.12, "overlay-padding": 5 } },
       { selector: "edge:selected", style: { "overlay-color": COLOR.ink, "overlay-opacity": 0.15, "overlay-padding": 4 } },
     ],
   });
-  cy.fit(undefined, 40);
+  cy.fit(undefined, 24);
 
+  const clearFocus = () => {
+    cy.elements().removeClass("dim");
+    cy.edges().removeClass("focus");
+  };
   const focusOn = (element) => {
-    cy.elements().not(".heading").addClass("dim");
-    (element.isNode() ? element.closedNeighborhood() : element.union(element.connectedNodes())).removeClass("dim");
+    clearFocus();
+    // A concept drawn in two places is focused in both.
+    const kept = element.isNode()
+      ? cy.nodes(`[concept = "${element.data("concept")}"]`).closedNeighborhood()
+      : element.union(element.connectedNodes());
+    cy.elements().not(".band").not(kept).addClass("dim");
+    kept.edges().addClass("focus");
   };
   cy.on("select", "node", (event) => {
     focusOn(event.target);
-    handlers.onNode(event.target.id());
+    handlers.onNode(event.target.data("concept"));
   });
   cy.on("select", "edge", (event) => {
     focusOn(event.target);
@@ -523,12 +545,12 @@ function drawGraph(model, handlers) {
   });
   cy.on("unselect", () => {
     if (cy.$(":selected").empty()) {
-      cy.elements().removeClass("dim");
+      clearFocus();
       handlers.onNothing();
     }
   });
 
-  // Node labels are drawn on a canvas, so redraw once the web font has arrived.
+  // Labels are drawn on a canvas, so redraw once the web font has arrived.
   document.fonts?.ready.then(() => cy && cy.style().update());
 }
 
@@ -629,6 +651,12 @@ try {
 
   // Reloading on the map address reopens the last finished map.
   if (location.hash === "#map") session = loadSaved() || session;
+
+  // A link ending in ?sample opens straight onto the sample learner's map.
+  if (new URLSearchParams(location.search).has("sample")) {
+    loadSampleLearner();
+    history.replaceState(null, "", "#map");
+  }
   render();
 } catch (error) {
   show(

@@ -1,6 +1,18 @@
 {
   "title": "The human heart",
   "summary": "How blood moves through the heart, lungs and body, and what keeps it moving.",
+  "layout": {
+    "rows": [
+      { "y": 0, "label": "Right side: body to lungs",
+        "cells": ["body", "venae_cavae", "ra", "tricuspid", "rv", "pulmonary_valve", "pulmonary_artery", "lungs", "pulmonary_circ"] },
+      { "y": 1,
+        "cells": ["deoxy", "vein", null, null, "septum", null, "artery", "oxy", "double_circ"] },
+      { "y": 2, "label": "Left side: lungs to body",
+        "cells": ["lungs", "pulmonary_veins", "la", "mitral", "lv", "aortic_valve", "aorta", "body", "systemic_circ"] },
+      { "y": 3.25, "label": "Heart muscle: signal and supply",
+        "cells": [null, null, "sa_node", "av_node", "myocardium", null, "coronary"] }
+    ]
+  },
   "nodes": [
     { "id": "venae_cavae", "label": "Venae cavae", "group": "vessel", "anchor": "venae_cavae", "prereqs": [], "desc": "The two large veins that return blood from the body to the heart." },
     { "id": "ra", "label": "Right atrium", "group": "chamber", "anchor": "right_atrium", "prereqs": [], "desc": "The upper right chamber. It receives blood returning from the body." },
