@@ -206,3 +206,16 @@ textarea {
 @media (prefers-reduced-motion: no-preference) {
   .progress span { transition: background-color 0.2s; }
 }
+
+/* Ways out: the title goes home, and an open concept can be closed */
+a.bar-title { color: inherit; text-decoration: none; }
+a.bar-title:hover { text-decoration: underline; text-underline-offset: 4px; }
+.detail-head { display: flex; gap: 0.75rem; align-items: flex-start; justify-content: space-between; }
+.detail-head h2 { margin-bottom: 0.5rem; }
+.detail-head button { flex: none; }
+.reading-hint { color: var(--muted); }
+
+@media (max-width: 1000px) {
+  .side.right { order: -1; scroll-margin-top: 0.5rem; }
+  .canvas-wrap { order: -2; }
+}

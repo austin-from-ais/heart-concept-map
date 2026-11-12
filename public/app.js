@@ -1,4 +1,5 @@
 import { buildModel, STATES, STATE_LABEL, CONFIDENCE_LABEL } from "./model.js";
+import { layoutByLevel, COLUMN_GAP, ROW_GAP } from "./layout.js";
 
 const app = document.getElementById("app");
 const SAVE_KEY = "concept-map-session-v1";
@@ -61,6 +62,32 @@ function shuffled(list) {
   return copy;
 }
 
+/* ---------- Moving between screens ---------- */
+
+// Each screen has its own address (#home, #test, #map), so the browser Back button works.
+const testInProgress = () => Boolean(session.started) && !session.finished && !session.sample;
+const mapReady = () => Boolean(session.finished || session.sample);
+
+function render() {
+  const screen = location.hash.slice(1);
+  if (screen === "test" && testInProgress()) return showQuestion();
+  if (screen === "map" && mapReady()) return showMap();
+  if (screen !== "home") history.replaceState(null, "", "#home");
+  showIntro();
+}
+
+function go(screen) {
+  if (location.hash.slice(1) === screen) render();
+  else location.hash = screen;
+}
+
+window.addEventListener("hashchange", render);
+
+// Escape puts away whatever is open: a selected concept or link on the map.
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && cy && !cy.$(":selected").empty()) cy.elements().unselect();
+});
+
 /* ---------- Intro ---------- */
 
 function showIntro() {
@@ -78,7 +105,8 @@ function showIntro() {
         <li><span class="swatch misconception"></span>Red: a belief to correct</li>
       </ul>
       <div class="actions">
-        <button id="start">Start the test</button>
+        ${testInProgress() ? `<button id="continue">Continue the test (question ${session.index + 1} of ${domain.items.length})</button>` : ""}
+        <button id="start" class="${testInProgress() ? "quiet" : ""}">${testInProgress() ? "Start over" : "Start the test"}</button>
         ${saved ? `<button class="quiet" id="resume">Open your last map</button>` : ""}
         <button class="quiet" id="sample">See a sample learner's map</button>
       </div>
@@ -88,23 +116,26 @@ function showIntro() {
   );
   document.getElementById("start").onclick = () => {
     session = newSession();
+    session.started = true;
     for (const item of domain.items) {
       if (item.type === "mc") session.optionOrder[item.id] = shuffled(item.options.map((o) => o.id));
     }
-    showQuestion();
+    go("test");
   };
+  const resumeTest = document.getElementById("continue");
+  if (resumeTest) resumeTest.onclick = () => go("test");
   document.getElementById("sample").onclick = () => {
     session = newSession();
     session.sample = true;
     for (const [itemId, [optionId, confidence]] of Object.entries(domain.sampleLearner)) {
       session.responses[itemId] = { optionId, confidence };
     }
-    showMap();
+    go("map");
   };
   if (saved) {
     document.getElementById("resume").onclick = () => {
       session = saved;
-      showMap();
+      go("map");
     };
   }
 }
@@ -158,7 +189,8 @@ function showQuestion() {
         </fieldset>
         <div class="actions">
           <button type="submit" id="next" disabled>${nextLabel}</button>
-          ${session.index > 0 ? `<button type="button" class="quiet" id="back">Back</button>` : ""}
+          ${session.index > 0 ? `<button type="button" class="quiet" id="back">Previous question</button>` : ""}
+          <button type="button" class="quiet" id="exit">Exit the test</button>
         </div>
       </form>`,
       "test",
@@ -184,7 +216,8 @@ function showQuestion() {
         <p class="hint">Write what you actually know, in your own words. A few sentences is enough. Leave it empty to skip the question.</p>
         <div class="actions">
           <button type="submit">${nextLabel}</button>
-          ${session.index > 0 ? `<button type="button" class="quiet" id="back">Back</button>` : ""}
+          ${session.index > 0 ? `<button type="button" class="quiet" id="back">Previous question</button>` : ""}
+          <button type="button" class="quiet" id="exit">Exit the test</button>
         </div>
       </form>`,
       "test",
@@ -197,6 +230,9 @@ function showQuestion() {
       advance();
     };
   }
+
+  // Leaving keeps the answers so far; the start screen offers to continue.
+  document.getElementById("exit").onclick = () => go("home");
 
   const back = document.getElementById("back");
   if (back) {
@@ -247,7 +283,7 @@ async function gradeWritten() {
   }
   session.finished = true;
   save();
-  showMap();
+  go("map");
 }
 
 /* ---------- Map ---------- */
@@ -292,7 +328,7 @@ function showMap() {
             : `<p class="empty">No misconceptions showed up in your answers.</p>`
         }
 
-        <div class="actions"><button class="quiet small" id="retake">Take the test${session.sample ? "" : " again"}</button></div>
+        <div class="actions"><button class="quiet small" id="retake">Back to the start</button></div>
       </aside>
 
       <section class="canvas-wrap" aria-label="Concept map">
@@ -302,6 +338,7 @@ function showMap() {
             <button id="view-expert" aria-pressed="false">Full map</button>
           </div>
           <label><input type="checkbox" id="labels" checked> Show link labels</label>
+          <span class="reading-hint">Read left to right: each column builds on the ones before it.</span>
           <span class="spacer"></span>
           <button class="quiet small" id="fit">Fit to window</button>
         </div>
@@ -321,22 +358,35 @@ function showMap() {
   const showHelp = () => {
     detail.innerHTML = `<h2>Select a concept</h2>
       <p class="empty">Select any box or link on the map to see why it has its status, which answers it came from, and what it connects to.</p>
-      <p class="empty">Drag boxes to rearrange the map. Scroll to zoom.</p>`;
+      <p class="empty">Drag boxes to rearrange the map. Scroll to zoom. Press Escape or Close to put a selection away.</p>`;
   };
   showHelp();
+
+  // On a narrow screen the details sit below the map, so bring them into view.
+  const stacked = () => window.matchMedia("(max-width: 1000px)").matches;
+  const revealDetail = () => {
+    if (stacked()) detail.scrollIntoView({ block: "start" });
+  };
 
   drawGraph(model, {
     onNode: (id) => {
       detail.innerHTML = nodeDetailHtml(id, model);
+      revealDetail();
     },
     onEdge: (id) => {
       detail.innerHTML = edgeDetailHtml(id, model);
+      revealDetail();
     },
     onNothing: showHelp,
   });
 
   // Any "data-node" button, in either side panel, selects that concept on the map.
   app.querySelector(".map-screen").addEventListener("click", (event) => {
+    if (event.target.closest("[data-close]")) {
+      cy.elements().unselect();
+      if (stacked()) document.querySelector(".canvas-wrap").scrollIntoView({ block: "start" });
+      return;
+    }
     const button = event.target.closest("[data-node]");
     if (!button || !cy) return;
     const node = cy.getElementById(button.dataset.node);
@@ -345,7 +395,7 @@ function showMap() {
     cy.animate({ center: { eles: node }, duration: 250 });
   });
 
-  document.getElementById("retake").onclick = showIntro;
+  document.getElementById("retake").onclick = () => go("home");
   document.getElementById("fit").onclick = () => cy.fit(undefined, 40);
   document.getElementById("labels").onchange = (event) => cy.edges().toggleClass("nolabel", !event.target.checked);
   const mine = document.getElementById("view-mine");
@@ -353,25 +403,43 @@ function showMap() {
   const setView = (isExpert) => {
     mine.setAttribute("aria-pressed", String(!isExpert));
     expert.setAttribute("aria-pressed", String(isExpert));
-    cy.elements().toggleClass("expert", isExpert);
+    cy.elements().not(".heading").toggleClass("expert", isExpert);
   };
   mine.onclick = () => setView(false);
   expert.onclick = () => setView(true);
 }
 
 function drawGraph(model, handlers) {
+  const layout = layoutByLevel(domain);
   const elements = [
+    // One heading per column. They are part of the picture, not something to select.
+    ...Array.from({ length: layout.columnCount }, (_, column) => ({
+      group: "nodes",
+      data: { id: `heading-${column}`, label: column === 0 ? "Step 1: start here" : `Step ${column + 1}`, width: 150 },
+      position: { x: column * COLUMN_GAP, y: layout.headingY },
+      classes: "heading",
+      selectable: false,
+      grabbable: false,
+    })),
     ...domain.nodes.map((n) => ({
       group: "nodes",
       data: { id: n.id, label: n.label, width: Math.max(72, n.label.length * 7.4 + 26) },
-      position: { x: n.pos[0], y: n.pos[1] },
+      position: { x: layout.positions[n.id].x, y: layout.positions[n.id].y },
       classes: `${model.nodes[n.id].state} ${model.nodes[n.id].next ? "next" : ""}`,
     })),
-    ...domain.edges.map((e) => ({
-      group: "edges",
-      data: { id: e.id, source: e.source, target: e.target, label: e.label },
-      classes: model.edges[e.id].state,
-    })),
+    ...domain.edges.map((e) => {
+      const from = layout.positions[e.source];
+      const to = layout.positions[e.target];
+      // A link between two concepts in the same column would run straight through
+      // the boxes between them, so bow it out to the side.
+      const rowsApart = Math.round(Math.abs(from.y - to.y) / ROW_GAP);
+      const bowed = from.column === to.column && rowsApart > 1;
+      return {
+        group: "edges",
+        data: { id: e.id, source: e.source, target: e.target, label: e.label, bow: 50 + 22 * rowsApart },
+        classes: `${model.edges[e.id].state} ${bowed ? "bowed" : ""}`,
+      };
+    }),
   ];
 
   const font = '"Bricolage Grotesque", "Segoe UI", sans-serif';
@@ -392,6 +460,13 @@ function drawGraph(model, handlers) {
           "border-width": 2, "border-color": COLOR.ink, "border-style": "solid",
         },
       },
+      {
+        selector: "node.heading",
+        style: {
+          "background-opacity": 0, "border-width": 0, events: "no",
+          "font-size": 13.5, "font-weight": 700, color: COLOR.muted,
+        },
+      },
       { selector: "node.known", style: { "background-color": COLOR.known, "border-color": COLOR.known, color: "#fff" } },
       { selector: "node.shaky", style: { "background-color": COLOR.shakySoft, "border-color": COLOR.shaky } },
       { selector: "node.gap", style: { "border-style": "dashed" } },
@@ -407,6 +482,10 @@ function drawGraph(model, handlers) {
           "text-rotation": "autorotate", "text-background-color": COLOR.paper,
           "text-background-opacity": 0.92, "text-background-padding": 2,
         },
+      },
+      {
+        selector: "edge.bowed",
+        style: { "curve-style": "unbundled-bezier", "control-point-distances": "data(bow)", "control-point-weights": 0.5 },
       },
       { selector: "edge.known", style: { "line-color": COLOR.known, "target-arrow-color": COLOR.known, width: 2.5 } },
       { selector: "edge.shaky", style: { "line-color": COLOR.shaky, "target-arrow-color": COLOR.shaky } },
@@ -431,7 +510,7 @@ function drawGraph(model, handlers) {
   cy.fit(undefined, 40);
 
   const focusOn = (element) => {
-    cy.elements().addClass("dim");
+    cy.elements().not(".heading").addClass("dim");
     (element.isNode() ? element.closedNeighborhood() : element.union(element.connectedNodes())).removeClass("dim");
   };
   cy.on("select", "node", (event) => {
@@ -496,7 +575,7 @@ function nodeDetailHtml(id, model) {
   const node = nodeById(id);
   const status = model.nodes[id];
   const links = domain.edges.filter((e) => e.source === id || e.target === id);
-  return `<h2>${esc(node.label)}</h2>
+  return `<div class="detail-head"><h2>${esc(node.label)}</h2><button class="quiet small" data-close>Close</button></div>
     <p>${chip(status.state)}${status.next ? ` <span class="chip untested">Learn next</span>` : ""}</p>
     <p>${esc(node.desc)}</p>
     ${misconceptionsHtml(status.misconceptions, model)}
@@ -520,7 +599,7 @@ function edgeDetailHtml(id, model) {
   const edge = domain.edges.find((e) => e.id === id);
   const status = model.edges[id];
   const itemIds = [...new Set(status.evidence.map((e) => e.itemId))];
-  return `<h2>${esc(nodeById(edge.source).label)} and ${esc(nodeById(edge.target).label)}</h2>
+  return `<div class="detail-head"><h2>${esc(nodeById(edge.source).label)} and ${esc(nodeById(edge.target).label)}</h2><button class="quiet small" data-close>Close</button></div>
     <p>${chip(status.state)}</p>
     <p>${esc(edge.statement)}</p>
     ${misconceptionsHtml(status.misconceptions, model)}
@@ -548,7 +627,9 @@ try {
   }
   if (!canGrade) domain.items = domain.items.filter((item) => item.type === "mc");
 
-  showIntro();
+  // Reloading on the map address reopens the last finished map.
+  if (location.hash === "#map") session = loadSaved() || session;
+  render();
 } catch (error) {
   show(
     `<div class="column"><h2>The test could not be loaded</h2><p>${esc(error.message)} Reload this page to try again.</p></div>`,
